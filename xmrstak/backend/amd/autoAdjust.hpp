@@ -21,7 +21,7 @@
 #if defined(__APPLE__)
 #include <OpenCL/cl.h>
 #else
-#include <CL/cl.h>
+#include <CL/cl_ext.h>
 #endif
 
 
@@ -100,7 +100,7 @@ private:
 			/* 1000 is a magic selected limit, the reason is that more than 2GiB memory
 			 * sowing down the memory performance because of TLB cache misses
 			 */
-			size_t maxThreads = 1000u;
+			size_t maxThreads = 8000u;
 			if(
 				ctx.name.compare("gfx901") == 0 ||
 				ctx.name.compare("gfx904") == 0 ||
@@ -116,7 +116,7 @@ private:
 				 * Limit the number of threads based on the issue: https://github.com/fireice-uk/xmr-stak/issues/5#issuecomment-339425089
 				 * to avoid out of memory errors
 				 */
-				maxThreads = 2024u;
+				maxThreads = 8192u;
 			}
 
 			// keep 128MiB memory free (value is randomly chosen)
@@ -131,8 +131,8 @@ private:
 			conf += std::string("  // compute units: ") + std::to_string(ctx.computeUnits) + "\n";
 			// set 8 threads per block (this is a good value for the most gpus)
 			conf += std::string("  { \"index\" : ") + std::to_string(ctx.deviceIdx) + ",\n" +
-				"    \"intensity\" : " + std::to_string(intensity) + ", \"worksize\" : " + std::to_string(8) + ",\n" +
-				"    \"affine_to_cpu\" : false, \"strided_index\" : true\n"
+				"    \"intensity\" : " + std::to_string(intensity) + ", \"extra_intensity\" : 0,\n"
+ 			    "    \"worksize\" : " + std::to_string(8) + ",\n" +
 				"  },\n";
 			++i;
 		}

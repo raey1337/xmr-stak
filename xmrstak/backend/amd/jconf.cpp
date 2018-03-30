@@ -56,9 +56,10 @@ struct configVal {
 	Type iType;
 };
 
-//Same order as in configEnum, as per comment above
+// Same order as in configEnum, as per comment above
+// kNullType means any type
 configVal oConfigValues[] = {
-	{ aGpuThreadsConf, "gpu_threads_conf", kArrayType },
+	{ aGpuThreadsConf, "gpu_threads_conf", kNullType },
 	{ iPlatformIdx, "platform_index", kNumberType }
 };
 
@@ -67,6 +68,8 @@ constexpr size_t iConfigCnt = (sizeof(oConfigValues)/sizeof(oConfigValues[0]));
 inline bool checkType(Type have, Type want)
 {
 	if(want == have)
+		return true;
+	else if(want == kNullType)
 		return true;
 	else if(want == kTrueType && have == kFalseType)
 		return true;
@@ -103,15 +106,18 @@ bool jconf::GetThreadConfig(size_t id, thd_cfg &cfg)
 	if(!oThdConf.IsObject())
 		return false;
 
-	const Value *idx, *intensity, *extraIntensity, *w_size, *aff, *stridedIndex;
+	const Value *idx, *intensity, *extraIntensity, *w_size, *aff, *stridedIndex, *memChunk, *compMode;
 	idx = GetObjectMember(oThdConf, "index");
 	intensity = GetObjectMember(oThdConf, "intensity");
 	extraIntensity = GetObjectMember(oThdConf, "extra_intensity");
 	w_size = GetObjectMember(oThdConf, "worksize");
 	aff = GetObjectMember(oThdConf, "affine_to_cpu");
 	stridedIndex = GetObjectMember(oThdConf, "strided_index");
+	memChunk = GetObjectMember(oThdConf, "mem_chunk");
+	compMode = GetObjectMember(oThdConf, "comp_mode");
 
-	if(idx == nullptr || intensity == nullptr || extraIntensity == nullptr || w_size == nullptr || aff == nullptr || stridedIndex == nullptr)
+	if(idx == nullptr || intensity == nullptr || extraIntensity == nullptr || w_size == nullptr || aff == nullptr || memChunk == nullptr ||
+		stridedIndex == nullptr || compMode == nullptr)
 		return false;
 
 	if(!idx->IsUint64() || !intensity->IsUint64() || !extraIntensity->IsUint64()|| !w_size->IsUint64())
@@ -120,14 +126,43 @@ bool jconf::GetThreadConfig(size_t id, thd_cfg &cfg)
 	if(!aff->IsUint64() && !aff->IsBool())
 		return false;
 
-	if(!stridedIndex->IsBool())
+	if(!stridedIndex->IsBool() && !stridedIndex->IsNumber())
+	{
+		printer::inst()->print_msg(L0, "ERROR: strided_index must be a bool or a number");
+		return false;
+	}
+
+	if(stridedIndex->IsBool())
+		cfg.stridedIndex = stridedIndex->GetBool() ? 1 : 0;
+	else
+		cfg.stridedIndex = (int)stridedIndex->GetInt64();
+
+	if(cfg.stridedIndex > 2)
+	{
+		printer::inst()->print_msg(L0, "ERROR: strided_index must be smaller than 2");
+		return false;
+	}
+
+	cfg.memChunk = (int)memChunk->GetInt64();
+
+	if(!idx->IsUint64() || cfg.memChunk > 18 )
+	{
+		printer::inst()->print_msg(L0, "ERROR: mem_chunk must be smaller than 18");
+		return false;
+	}
+
+	if(!compMode->IsBool())
 		return false;
 
 	cfg.index = idx->GetUint64();
+<<<<<<< HEAD
 	cfg.intensity = intensity->GetUint64();
 	cfg.extraIntensity = extraIntensity->GetUint64();
+=======
+>>>>>>> ef87d28da53ce40d79e053668dbddab82ef997b0
 	cfg.w_size = w_size->GetUint64();
-	cfg.stridedIndex = stridedIndex->GetBool();
+	cfg.intensity = intensity->GetUint64();
+	cfg.compMode = compMode->GetBool();
 
 	if(aff->IsNumber())
 		cfg.cpu_aff = aff->GetInt64();

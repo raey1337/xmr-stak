@@ -452,8 +452,7 @@ __kernel void cn0(__global ulong *input, __global uint4 *Scratchpad, __global ul
 	uint4 text;
 
 	const ulong gIdx = getIdx();
-	__global uint4 *Scratchpad = gIdx < C_rawIntensity ? Scratchpad0 : Scratchpad1;
-    ulong BlockSize =  gIdx < C_rawIntensity ? C_rawIntensity : C_rawExtraIntensity;
+
 	for(int i = get_local_id(1) * WORKSIZE + get_local_id(0);
 		i < 256;
 		i += WORKSIZE * 8)
@@ -469,7 +468,8 @@ __kernel void cn0(__global ulong *input, __global uint4 *Scratchpad, __global ul
 		
 #if(COMP_MODE==1)
 	// do not use early return here
-	if(gIdx < C_Threads)
+	if(gIdx < Threads)
+#endif
 	{
 		states += 25 * gIdx;
 
@@ -502,7 +502,8 @@ __kernel void cn0(__global ulong *input, __global uint4 *Scratchpad, __global ul
 	mem_fence(CLK_GLOBAL_MEM_FENCE);
 #if(COMP_MODE==1)
 	// do not use early return here
-	if(gIdx < C_Threads)
+	if(gIdx < Threads)
+#endif
 	{
 		#pragma unroll
 		for(int i = 0; i < 25; ++i) states[i] = State[i];
@@ -541,7 +542,8 @@ __kernel void cn0(__global ulong *input, __global uint4 *Scratchpad, __global ul
 
 #if(COMP_MODE==1)
 	// do not use early return here
-	if(gIdx < C_Threads)
+	if(gIdx < Threads)
+#endif
 	{
 		int iterations = MEMORY >> 7;
 #if (ALGO == 4)
@@ -583,9 +585,6 @@ __kernel void cn1_monero(__global uint4 *Scratchpad, __global ulong *states, ulo
 
 	const ulong gIdx = getIdx();
 
-    __global uint4 *Scratchpad = gIdx < C_rawIntensity ? Scratchpad0 : Scratchpad1;
-    ulong BlockSize =  gIdx < C_rawIntensity ? C_rawIntensity : C_rawExtraIntensity;
-
 	for(int i = get_local_id(0); i < 256; i += WORKSIZE)
 	{
 		const uint tmp = AES0_C[i];
@@ -601,7 +600,7 @@ __kernel void cn1_monero(__global uint4 *Scratchpad, __global ulong *states, ulo
 	uint4 b_x;
 #if(COMP_MODE==1)
 	// do not use early return here
-	if(gIdx < C_Threads)
+	if(gIdx < Threads)
 #endif
 	{
 		states += 25 * gIdx;
@@ -626,7 +625,8 @@ __kernel void cn1_monero(__global uint4 *Scratchpad, __global ulong *states, ulo
 
 #if(COMP_MODE==1)
 	// do not use early return here
-	if(gIdx < C_Threads)
+	if(gIdx < Threads)
+#endif
 	{
 		#pragma unroll 8
 		for(int i = 0; i < ITERATIONS; ++i)
@@ -777,9 +777,6 @@ __kernel void cn2(__global uint4 *Scratchpad, __global ulong *states, __global u
 	
 	const ulong gIdx = getIdx();
 
-    __global uint4 *Scratchpad = gIdx < C_rawIntensity ? Scratchpad0 : Scratchpad1;
-    ulong BlockSize =  gIdx < C_rawIntensity ? C_rawIntensity : C_rawExtraIntensity;
-
 	for(int i = get_local_id(1) * WORKSIZE + get_local_id(0);
 		i < 256;
 		i += WORKSIZE * 8)
@@ -830,7 +827,8 @@ __kernel void cn2(__global uint4 *Scratchpad, __global ulong *states, __global u
 
 #if(COMP_MODE==1)
 	// do not use early return here
-	if(gIdx < C_Threads)
+	if(gIdx < Threads)
+#endif
 	{
 		int iterations = MEMORY >> 7;
 #if (ALGO == 4)
@@ -926,7 +924,8 @@ __kernel void cn2(__global uint4 *Scratchpad, __global ulong *states, __global u
 
 #if(COMP_MODE==1)
 	// do not use early return here
-	if(gIdx < C_Threads)
+	if(gIdx < Threads)
+#endif
 	{
 		if(!get_local_id(1))
 		{
@@ -940,7 +939,7 @@ __kernel void cn2(__global uint4 *Scratchpad, __global ulong *states, __global u
 			__global uint *destinationBranch1 = StateSwitch == 0 ? Branch0 : Branch1;
 			__global uint *destinationBranch2 = StateSwitch == 2 ? Branch2 : Branch3;
 			__global uint *destinationBranch = StateSwitch < 2 ? destinationBranch1 : destinationBranch2;
-			destinationBranch[atomic_inc(destinationBranch + C_Threads)] = gIdx;
+			destinationBranch[atomic_inc(destinationBranch + Threads)] = gIdx;
 		}
 	}
 	mem_fence(CLK_GLOBAL_MEM_FENCE);

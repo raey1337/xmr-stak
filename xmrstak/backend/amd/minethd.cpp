@@ -98,6 +98,8 @@ bool minethd::init_gpus()
 		vGpuData[i].rawExtraIntensity = cfg.extraIntensity;
 		vGpuData[i].workSize = cfg.w_size;
 		vGpuData[i].stridedIndex = cfg.stridedIndex;
+		vGpuData[i].memChunk = cfg.memChunk;
+		vGpuData[i].compMode = cfg.compMode;
 	}
 
 	return InitOpenCL(vGpuData.data(), n, jconf::inst()->GetPlatformIdx()) == ERR_SUCCESS;
@@ -190,8 +192,14 @@ void minethd::work_main()
 	uint64_t iCount = 0;
 	cryptonight_ctx* cpu_ctx;
 	cpu_ctx = cpu::minethd::minethd_alloc_ctx();
-	cn_hash_fun hash_fun = cpu::minethd::func_selector(::jconf::inst()->HaveHardwareAes(), true /*bNoPrefetch*/, ::jconf::inst()->IsCurrencyMonero());
+	auto miner_algo = ::jconf::inst()->GetMiningAlgo();
+	
+	// start with root algorithm and switch later if fork version is reached
+	cn_hash_fun hash_fun = cpu::minethd::func_selector(::jconf::inst()->HaveHardwareAes(), true /*bNoPrefetch*/, ::jconf::inst()->GetMiningAlgoRoot());
+
 	globalStates::inst().iConsumeCnt++;
+
+	uint8_t version = 0;
 
 	while (bQuit == 0)
 	{
@@ -206,6 +214,15 @@ void minethd::work_main()
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 			consume_work();
+			uint8_t new_version = oWork.getVersion();
+			const bool time_to_fork =
+				((miner_algo == cryptonight_monero || miner_algo == cryptonight_aeon) && version < 7 && new_version >= 7) ||
+				(miner_algo == cryptonight_heavy && version < 3 && new_version >= 3);
+			if(time_to_fork)
+			{
+				hash_fun = cpu::minethd::func_selector(::jconf::inst()->HaveHardwareAes(), true /*bNoPrefetch*/, miner_algo);
+			}
+			version = new_version;
 			continue;
 		}
 
@@ -214,7 +231,8 @@ void minethd::work_main()
 
 		assert(sizeof(job_result::sJobID) == sizeof(pool_job::sJobID));
 		uint64_t target = oWork.iTarget;
-		XMRSetJob(pGpuCtx, oWork.bWorkBlob, oWork.iWorkSize, target);
+		/// \todo add monero hard for version
+		XMRSetJob(pGpuCtx, oWork.bWorkBlob, oWork.iWorkSize, target, miner_algo, version);
 
 		if(oWork.bNiceHash)
 			pGpuCtx->Nonce = *(uint32_t*)(oWork.bWorkBlob + 39);
@@ -230,7 +248,7 @@ void minethd::work_main()
 			cl_uint results[0x100];
 			memset(results,0,sizeof(cl_uint)*(0x100));
 
-			XMRRunJob(pGpuCtx, results);
+			XMRRunJob(pGpuCtx, results, miner_algo, version);
 
 			for(size_t i = 0; i < results[0xFF]; i++)
 			{
@@ -257,6 +275,15 @@ void minethd::work_main()
 		}
 
 		consume_work();
+		uint8_t new_version = oWork.getVersion();
+		const bool time_to_fork =
+			((miner_algo == cryptonight_monero || miner_algo == cryptonight_aeon) && version < 7 && new_version >= 7) ||
+			(miner_algo == cryptonight_heavy && version < 3 && new_version >= 3);
+		if(time_to_fork)
+		{
+			hash_fun = cpu::minethd::func_selector(::jconf::inst()->HaveHardwareAes(), true /*bNoPrefetch*/, miner_algo);
+		}
+		version = new_version;
 	}
 }
 

@@ -155,13 +155,9 @@ bool jconf::GetThreadConfig(size_t id, thd_cfg &cfg)
 		return false;
 
 	cfg.index = idx->GetUint64();
-<<<<<<< HEAD
-	cfg.intensity = intensity->GetUint64();
-	cfg.extraIntensity = extraIntensity->GetUint64();
-=======
->>>>>>> ef87d28da53ce40d79e053668dbddab82ef997b0
 	cfg.w_size = w_size->GetUint64();
 	cfg.intensity = intensity->GetUint64();
+	cfg.extraIntensity = extraIntensity->GetUint64();
 	cfg.compMode = compMode->GetBool();
 
 	if(aff->IsNumber())
